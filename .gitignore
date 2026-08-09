@@ -1,0 +1,53 @@
+# Dependencies - ΔΕΝ ανεβάζουμε τα node_modules
+node_modules/
+
+# Lock files - τα ανεβάζουμε (αφαίρεσα το package-lock.json)
+# package-lock.json  # ΣΧΟΛΙΑΣΜΕΝΟ - ΘΑ ΤΟ ΑΝΕΒΑΣΟΥΜΕ
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# Cache
+.npm
+.eslintcache
+.yarn-integrity
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Build outputs
+dist/
+build/
+*.min.js
+
+# OS files
+.DS_Store
+Thumbs.db
+*.tmp
+*.temp
