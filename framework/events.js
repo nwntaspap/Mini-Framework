@@ -1,7 +1,8 @@
 /**
  * events.js — our own event handling layer.
  *
- * Instead of calling addEventListener() on every single element, we use EVENT
+ * Instead of calling addEventListener() on every single element (which is
+ * what the audit explicitly asks us NOT to just re-wrap), we use EVENT
  * DELEGATION: one real addEventListener per event *type*, attached once
  * on the app's root container. Every element that wants to handle that
  * event type registers its handler in a small internal registry; when the
@@ -48,6 +49,22 @@ export function setEventHandler(el, eventName, handler) {
   }
   handlerRegistry.get(el)[eventName] = handler;
   ensureDelegated(eventName);
+}
+
+/**
+ * Removes a previously registered handler for one event type on one
+ * element. Called by dom.js's updateAttrs() when a patch finds that an
+ * onX prop existed before but is gone in the new VNode — without this,
+ * the old handler would stay in the registry forever (a stale handler
+ * that keeps firing even though the VNode no longer declares it).
+ *
+ * @param {HTMLElement} el
+ * @param {string} eventName - e.g. "click" (no "on" prefix)
+ */
+export function removeEventHandler(el, eventName) {
+  const handlers = handlerRegistry.get(el);
+  if (!handlers) return;
+  delete handlers[eventName];
 }
 
 function ensureDelegated(eventName) {

@@ -1,4 +1,4 @@
-import { setEventHandler } from './events.js';
+import { setEventHandler, initEvents, removeEventHandler } from './events.js';
 
 /**
  * h(tag, attrs, children)
@@ -72,6 +72,107 @@ export function createDOMElement(vnode) {
  * @param {HTMLElement} container - a real DOM element already on the page
  */
 export function mount(vnode, container) {
+  initEvents(container);
   container.innerHTML = '';
   container.appendChild(createDOMElement(vnode));
+}
+
+// ---------------------------------------------------------------------
+// Diffing — compares an old VNode tree against a new one and applies
+// the minimum set of changes to the real DOM, instead of tearing
+// everything down and rebuilding it (what mount() does).
+//
+// NOTE: this is index-based child diffing (children compared by
+// position, not by a stable "key"). That's fine for TodoMVC's simple
+// cases, but reordering a keyed list would cause more DOM churn than
+// strictly necessary. Worth revisiting if we ever need list reordering
+// to be cheap (e.g. Bomberman's player list).
+// ---------------------------------------------------------------------
+
+function isTextNode(vnode) {
+  return typeof vnode === 'string' || typeof vnode === 'number';
+}
+
+function changed(oldVNode, newVNode) {
+  if (typeof oldVNode !== typeof newVNode) return true;
+  if (isTextNode(newVNode)) return oldVNode !== newVNode;
+  return oldVNode.tag !== newVNode.tag;
+}
+
+function updateAttrs(el, oldAttrs = {}, newAttrs = {}) {
+  // remove attrs that no longer exist
+  for (const key of Object.keys(oldAttrs)) {
+    if (key in newAttrs) continue;
+
+    if (key.startsWith('on')) {
+      const eventName = key.slice(2).toLowerCase();
+      removeEventHandler(el, eventName);
+      continue;
+    }
+    if (DOM_PROPERTIES.has(key)) {
+      el[key] = false;
+    } else {
+      el.removeAttribute(key);
+    }
+  }
+
+  // set new/changed attrs
+  for (const [key, value] of Object.entries(newAttrs)) {
+    if (oldAttrs[key] === value) continue; // unchanged, skip
+
+    if (key.startsWith('on') && typeof value === 'function') {
+      const eventName = key.slice(2).toLowerCase();
+      setEventHandler(el, eventName, value); // overwrites previous handler
+    } else if (DOM_PROPERTIES.has(key)) {
+      el[key] = value;
+    } else {
+      el.setAttribute(key, value);
+    }
+  }
+}
+
+/**
+ * Patches `parent`'s child at `index` so it matches `newVNode`, using
+ * `oldVNode` to figure out the minimal change needed.
+ *
+ * @param {Node} parent - the real DOM parent element
+ * @param {VNode|string|undefined} newVNode
+ * @param {VNode|string|undefined} oldVNode
+ * @param {number} index - which child of `parent` we're patching
+ */
+export function patch(parent, newVNode, oldVNode, index = 0) {
+  const existing = parent.childNodes[index];
+
+  // case 1: node didn't exist before -> create it
+  if (oldVNode === undefined) {
+    parent.appendChild(createDOMElement(newVNode));
+    return;
+  }
+
+  // case 2: node no longer exists -> remove it
+  if (newVNode === undefined) {
+    if (existing) parent.removeChild(existing);
+    return;
+  }
+
+  // case 3: different type/tag -> replace wholesale
+  if (changed(oldVNode, newVNode)) {
+    parent.replaceChild(createDOMElement(newVNode), existing);
+    return;
+  }
+
+  // case 4a: both are text nodes and equal -> changed() already covered
+  // the "different text" case above, so if we're here they're equal.
+  if (isTextNode(newVNode)) return;
+
+  // case 4b: same tag -> update attrs in place, then diff children
+  updateAttrs(existing, oldVNode.attrs, newVNode.attrs);
+
+  const oldChildren = oldVNode.children || [];
+  const newChildren = newVNode.children || [];
+  const maxLength = Math.max(oldChildren.length, newChildren.length);
+
+  for (let i = 0; i < maxLength; i++) {
+    patch(existing, newChildren[i], oldChildren[i], i);
+  }
 }

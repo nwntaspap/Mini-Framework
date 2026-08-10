@@ -13,7 +13,7 @@
  * state -> view -> DOM.
  */
 import { createStore } from './state.js';
-import { mount } from './dom.js';
+import { mount, patch } from './dom.js';
 
 /**
  * @param {object} options
@@ -28,10 +28,20 @@ export function createApp({ state: initialState = {}, view }) {
 
   const store = createStore(initialState);
   let container = null;
+  let currentVNode = null; // last rendered tree, used to diff against next time
 
   function renderNow(state) {
     if (!container) return; // not mounted yet, nothing to render into
-    mount(view(state), container);
+
+    const newVNode = view(state);
+
+    if (currentVNode === null) {
+      mount(newVNode, container); // first render: nothing to diff yet
+    } else {
+      patch(container, newVNode, currentVNode, 0); // patch only what changed
+    }
+
+    currentVNode = newVNode;
   }
 
   // every state change re-renders automatically — this is the whole
