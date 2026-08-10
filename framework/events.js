@@ -1,8 +1,7 @@
 /**
  * events.js — our own event handling layer.
  *
- * Instead of calling addEventListener() on every single element (which is
- * what the audit explicitly asks us NOT to just re-wrap), we use EVENT
+ * Instead of calling addEventListener() on every single element, we use EVENT
  * DELEGATION: one real addEventListener per event *type*, attached once
  * on the app's root container. Every element that wants to handle that
  * event type registers its handler in a small internal registry; when the

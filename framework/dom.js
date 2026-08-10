@@ -6,9 +6,8 @@ import { setEventHandler } from './events.js';
  * Builds a "VNode" — a plain JS object describing a piece of UI.
  * It does NOT touch the real DOM. That's on purpose: h() only
  * describes *what* the UI should look like, some other part of
- * the framework (dom.js's createDOMElement, coming in Step 2)
- * will be responsible for turning that description into real
- * DOM nodes.
+ * the framework (dom.js's createDOMElement) will be responsible
+ * for turning that description into real DOM nodes.
  *
  * @param {string} tag - html tag name, e.g. "div", "input", "span"
  * @param {object} attrs - attributes/props, e.g. { class: "todo", id: "x" }
