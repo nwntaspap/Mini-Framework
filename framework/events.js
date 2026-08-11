@@ -67,27 +67,41 @@ export function removeEventHandler(el, eventName) {
   delete handlers[eventName];
 }
 
+// Events that don't bubble. Our delegation relies on bubbling up to the
+// root container — but blur/focus (needed for TodoMVC's "save edit on
+// blur" behavior) never bubble. The fix: listen in the CAPTURE phase
+// instead. Capture always fires top-down through every ancestor BEFORE
+// reaching the target, regardless of whether the event bubbles — so a
+// capture-phase listener on the root still sees these events.
+const NON_BUBBLING_EVENTS = new Set(['blur', 'focus']);
+
 function ensureDelegated(eventName) {
   if (delegatedTypes.has(eventName)) return;
   if (!rootContainer) {
     throw new Error('events.js: initEvents(container) must be called before registering handlers');
   }
 
-  rootContainer.addEventListener(eventName, nativeEvent => {
-    // walk up from the actual clicked/typed element until we find one
-    // with a registered handler for this event type, or we reach the
-    // root container itself (inclusive — the root can have handlers too)
-    let node = nativeEvent.target;
-    while (node) {
-      const handlers = handlerRegistry.get(node);
-      if (handlers && handlers[eventName]) {
-        handlers[eventName](nativeEvent);
-        return;
+  const useCapture = NON_BUBBLING_EVENTS.has(eventName);
+
+  rootContainer.addEventListener(
+    eventName,
+    nativeEvent => {
+      // walk up from the actual clicked/typed element until we find one
+      // with a registered handler for this event type, or we reach the
+      // root container itself (inclusive — the root can have handlers too)
+      let node = nativeEvent.target;
+      while (node) {
+        const handlers = handlerRegistry.get(node);
+        if (handlers && handlers[eventName]) {
+          handlers[eventName](nativeEvent);
+          return;
+        }
+        if (node === rootContainer) break;
+        node = node.parentNode;
       }
-      if (node === rootContainer) break;
-      node = node.parentNode;
-    }
-  });
+    },
+    useCapture
+  );
 
   delegatedTypes.add(eventName);
 }
