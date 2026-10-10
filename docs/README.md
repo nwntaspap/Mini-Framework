@@ -95,12 +95,25 @@ A few attribute names are handled specially:
 
 - **`onX` (e.g. `onClick`, `onInput`, `onKeydown`)** — registers an
   event handler, see [Creating an event](#3-creating-an-event) below.
+  A non-function value (`undefined`, `null`, `false`) means "no handler"
+  and unregisters any previous one, so `onClick: armed ? fn : undefined`
+  stops firing once `armed` is false.
 - **`value`, `checked`, `disabled`, `selected`** — set as real DOM
   _properties_ (`el.checked = true`) instead of HTML attributes, because
   that's what actually keeps checkboxes/inputs correctly in sync after
   the first render.
-- everything else (`class`, `id`, `type`, `placeholder`, `href`, ...) is
-  set with `setAttribute`.
+- **Boolean attributes** (`hidden`, `readonly`, `required`, `autofocus`,
+  `multiple`, ...) — present when `true`, removed when `false`/`null`/
+  `undefined`, so `hidden: false` really unhides the element.
+- **`null` / `undefined` values** are ignored (and remove a previously
+  set attribute) instead of becoming the literal string `"undefined"`.
+- everything else (`class`, `id`, `type`, `placeholder`, `href`, `aria-*`,
+  `data-*`, ...) is set with `setAttribute` — so `aria-hidden: false`
+  stays the string `"false"`, as ARIA expects.
+
+> _Note:_ removing a `value` attribute entirely from an `<input>` resets
+> the property to `false` (rendering `"false"`). For controlled inputs
+> (like the todo input) always pass `value: ''` rather than omitting it.
 
 ### 3. Creating an event
 
