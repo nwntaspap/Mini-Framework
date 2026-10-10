@@ -170,9 +170,23 @@ export function patch(parent, newVNode, oldVNode, index = 0) {
 
   const oldChildren = oldVNode.children || [];
   const newChildren = newVNode.children || [];
-  const maxLength = Math.max(oldChildren.length, newChildren.length);
 
-  for (let i = 0; i < maxLength; i++) {
+  // 1. Remove extra trailing children first, walking backwards.
+  //    Removing while iterating forward would shift the remaining
+  //    indices left and cause every other node to be skipped (a
+  //    leftover "ghost" child) whenever more than one had to go.
+  for (let i = oldChildren.length - 1; i >= newChildren.length; i--) {
+    patch(existing, undefined, oldChildren[i], i);
+  }
+
+  // 2. Patch the children present in both trees, by position.
+  const sharedLength = Math.min(oldChildren.length, newChildren.length);
+  for (let i = 0; i < sharedLength; i++) {
     patch(existing, newChildren[i], oldChildren[i], i);
+  }
+
+  // 3. Append any new children at the end.
+  for (let i = oldChildren.length; i < newChildren.length; i++) {
+    patch(existing, newChildren[i], undefined, i);
   }
 }

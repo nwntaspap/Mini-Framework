@@ -126,7 +126,17 @@ function todoItem(todo, state) {
           checked: todo.completed,
           onChange: () => toggleTodo(todo.id),
         }),
-        h('label', { onDblclick: () => startEditing(todo.id) }, [todo.title]),
+        h(
+          'label',
+          {
+            onDblclick: e => {
+              startEditing(todo.id); // synchronous re-render: the li is now in editing mode
+              const field = e.target.closest('li')?.querySelector('input.edit');
+              field?.focus(); // like the reference TodoMVC, so typing works right away
+            },
+          },
+          [todo.title]
+        ),
         h('button', { class: 'destroy', onClick: () => destroyTodo(todo.id) }),
       ]),
       h('input', {
