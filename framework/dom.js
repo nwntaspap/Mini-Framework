@@ -36,6 +36,77 @@ export function h(tag, attrs = {}, children = []) {
 // inputs won't reflect state changes correctly after the first render.
 const DOM_PROPERTIES = new Set(['value', 'checked', 'disabled', 'selected']);
 
+// HTML *boolean* attributes (present = true, absent = false). These need
+// special handling: passing `false` must *remove* the attribute, not write
+// the string "false" (which would keep e.g. `hidden` hidden). Anything not
+// listed here is treated as a normal string attribute (aria-*, data-*, ...).
+const BOOLEAN_ATTRIBUTES = new Set([
+  'allowfullscreen',
+  'async',
+  'autofocus',
+  'autoplay',
+  'controls',
+  'default',
+  'defer',
+  'formnovalidate',
+  'hidden',
+  'inert',
+  'ismap',
+  'itemscope',
+  'loop',
+  'multiple',
+  'muted',
+  'nomodule',
+  'novalidate',
+  'open',
+  'playsinline',
+  'readonly',
+  'required',
+  'reversed',
+]);
+
+/**
+ * Applies one attribute to a real DOM element.
+ * Handles event props, DOM-property props, boolean attributes, and skips
+ * null/undefined values (which would otherwise become the literal string
+ * "undefined").
+ */
+function setAttr(el, key, value) {
+  if (key.startsWith('on')) {
+    // Event props are handled only as handlers. A non-function value
+    // (undefined / null / false) means "no handler", so we must unregister
+    // any previous one. Otherwise `onClick: armed ? fn : undefined` keeps
+    // firing the old handler after `armed` becomes false.
+    const eventName = key.slice(2).toLowerCase(); // "onClick" -> "click"
+    if (typeof value === 'function') setEventHandler(el, eventName, value);
+    else removeEventHandler(el, eventName);
+  } else if (DOM_PROPERTIES.has(key)) {
+    el[key] = value;
+  } else if (BOOLEAN_ATTRIBUTES.has(key)) {
+    if (value) el.setAttribute(key, '');
+    else el.removeAttribute(key);
+  } else if (value === null || value === undefined) {
+    el.removeAttribute(key);
+  } else {
+    el.setAttribute(key, value);
+  }
+}
+
+/**
+ * Removes one attribute from a real DOM element.
+ * Mirrors setAttr: event handlers are unregistered, DOM properties are
+ * reset, everything else is removed via removeAttribute.
+ */
+function removeAttr(el, key) {
+  if (key.startsWith('on')) {
+    removeEventHandler(el, key.slice(2).toLowerCase());
+  } else if (DOM_PROPERTIES.has(key)) {
+    el[key] = false;
+  } else {
+    el.removeAttribute(key);
+  }
+}
+
 /**
  * Turns a single VNode (or text string) into a real DOM node.
  * This is recursive: it builds the element, then builds and appends
@@ -53,15 +124,7 @@ export function createDOMElement(vnode) {
   const el = document.createElement(vnode.tag);
 
   for (const [key, value] of Object.entries(vnode.attrs || {})) {
-    if (key.startsWith('on') && typeof value === 'function') {
-      const eventName = key.slice(2).toLowerCase(); // "onClick" -> "click"
-      // our own event system from events.js
-      setEventHandler(el, eventName, value);
-    } else if (DOM_PROPERTIES.has(key)) {
-      el[key] = value;
-    } else {
-      el.setAttribute(key, value);
-    }
+    setAttr(el, key, value);
   }
 
   for (const child of vnode.children || []) {
@@ -110,31 +173,13 @@ function updateAttrs(el, oldAttrs = {}, newAttrs = {}) {
   // remove attrs that no longer exist
   for (const key of Object.keys(oldAttrs)) {
     if (key in newAttrs) continue;
-
-    if (key.startsWith('on')) {
-      const eventName = key.slice(2).toLowerCase();
-      removeEventHandler(el, eventName);
-      continue;
-    }
-    if (DOM_PROPERTIES.has(key)) {
-      el[key] = false;
-    } else {
-      el.removeAttribute(key);
-    }
+    removeAttr(el, key);
   }
 
   // set new/changed attrs
   for (const [key, value] of Object.entries(newAttrs)) {
     if (oldAttrs[key] === value) continue; // unchanged, skip
-
-    if (key.startsWith('on') && typeof value === 'function') {
-      const eventName = key.slice(2).toLowerCase();
-      setEventHandler(el, eventName, value); // overwrites previous handler
-    } else if (DOM_PROPERTIES.has(key)) {
-      el[key] = value;
-    } else {
-      el.setAttribute(key, value);
-    }
+    setAttr(el, key, value); // overwrites previous handler/attr
   }
 }
 
