@@ -20,7 +20,13 @@ function saveTodos(todos) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(todos));
 }
 
-let nextId = 1;
+const initialTodos = loadTodos();
+
+// ids must not collide with the ones already loaded from localStorage.
+// Without this, after a refresh nextId restarts at 1 and a new todo reuses
+// an existing id, so toggling/editing/deleting it would also affect the
+// pre-existing todo with the same id.
+let nextId = initialTodos.reduce((max, todo) => Math.max(max, Number(todo.id) || 0), 0) + 1;
 function makeId() {
   return String(nextId++);
 }
@@ -30,7 +36,7 @@ function makeId() {
 // ---------------------------------------------------------------------
 const app = createApp({
   state: {
-    todos: loadTodos(),
+    todos: initialTodos,
     filter: 'all', // "all" | "active" | "completed" — driven by the router
     editingId: null, // id of the todo currently being double-click-edited
   },
@@ -132,7 +138,10 @@ function todoItem(todo, state) {
             onDblclick: e => {
               startEditing(todo.id); // synchronous re-render: the li is now in editing mode
               const field = e.target.closest('li')?.querySelector('input.edit');
-              field?.focus(); // like the reference TodoMVC, so typing works right away
+              if (field) {
+                field.value = todo.title; // discard stale text from a previously cancelled edit
+                field.focus(); // like the reference TodoMVC, so typing works right away
+              }
             },
           },
           [todo.title]
