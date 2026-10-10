@@ -16,11 +16,18 @@ import { setEventHandler, initEvents, removeEventHandler } from './events.js';
  * @returns {VNode}
  */
 export function h(tag, attrs = {}, children = []) {
+  const list = Array.isArray(children) ? children : [children];
   return {
     tag,
     attrs: attrs || {},
-    // allow h("div", {}, "just text") as a shorthand
-    children: Array.isArray(children) ? children : [children],
+    // Ignore null/undefined/boolean children (the result of e.g.
+    // `condition && h(...)`), the way React does. Without this, a `false`
+    // child reaches createDOMElement() and becomes a stray
+    // <undefined> element in the DOM. 0 and "" are kept — they are valid
+    // text nodes.
+    children: list.filter(
+      child => child !== null && child !== undefined && typeof child !== 'boolean'
+    ),
   };
 }
 
